@@ -31,7 +31,7 @@ let backendAddress = null;
 app.post('/register-backend', (req, res) => {
     const { ip, port } = req.body;
     backendAddress = `http://${ip}:${port}`;
-    console.log('Backend registered:', backendAddress);
+    // console.log('Backend registered:', backendAddress);
     res.json({ 
         message: 'Backend address registered successfully',
         addressProviderInfo: {
