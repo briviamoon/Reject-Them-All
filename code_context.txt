@@ -1,0 +1,296 @@
+// File: address-provider/server.js
+// File: address-provider/server.js
+const express = require('express');
+const cors = require('cors');
+const axios = require('axios');
+const os = require('os');
+
+const app = express();
+const PORT = 4000;
+
+function getLocalIPAddress() {
+    const interfaces = os.networkInterfaces();
+    for (const ifaceName in interfaces) {
+        const iface = interfaces[ifaceName];
+        for (const alias of iface) {
+            if (alias.family === 'IPv4' && !alias.internal) {
+                return alias.address;
+            }
+        }
+    }
+    return '127.0.0.1';
+}
+
+const HOST = getLocalIPAddress();
+
+app.use(cors());
+app.use(express.json());
+
+let backendAddress = null;
+
+app.post('/register-backend', (req, res) => {
+    const { ip, port } = req.body;
+    backendAddress = `http://${ip}:${port}`;
+    console.log('Backend registered:', backendAddress);
+    res.json({ 
+        message: 'Backend address registered successfully',
+        addressProviderInfo: {
+            ip: HOST,
+            port: PORT
+        }
+    });
+});
+
+app.post('/get-backend-address', (req, res) => {
+    const { passcode } = req.body;
+    if (passcode !== '9062002') {
+        return res.status(401).json({ error: 'Invalid passcode' });
+    }
+    if (!backendAddress) {
+        return res.status(404).json({ error: 'Backend address not registered' });
+    }
+    res.json({ address: backendAddress });
+});
+
+app.listen(PORT, HOST, () => {
+    console.log(`Address provider running on http://${HOST}:${PORT}`);
+});
+
+
+// File: backend/server.js
+const express = require('express');
+const bodyParser = require('body-parser');
+const os = require('os');
+
+const app = express();
+const PORT = 3000;
+const cors = require('cors');
+const axios = require('axios');
+
+// Function to get the local IP address of the machine
+function getLocalIPAddress() {
+	const interfaces = os.networkInterfaces();
+    for (const ifaceName in interfaces) {
+		const iface = interfaces[ifaceName];
+        for (const alias of iface) {
+			if (alias.family === 'IPv4' && !alias.internal) {
+				return alias.address;
+            }
+        }
+    }
+    return '127.0.0.1';
+}
+
+const HOST = getLocalIPAddress(); // Get the dynamic IP address
+
+app.use(bodyParser.json());
+app.use(express.static('frontend'));
+app.use(cors());
+
+
+//
+let addressProviderInfo = null;
+
+// Function to register with address provider
+function registerWithAddressProvider() {
+    const initialAddressProviderUrl = `http://${HOST}:4000`; // Assuming address provider is on the same machine initially
+    
+    axios.post(`${initialAddressProviderUrl}/register-backend`, { ip: HOST, port: PORT })
+        .then(response => {
+            addressProviderInfo = response.data.addressProviderInfo;
+            console.log('Registered with address provider:', addressProviderInfo);
+        })
+        .catch(error => {
+            console.error('Failed to register with address provider:', error);
+            // Retry after a delay
+            setTimeout(registerWithAddressProvider, 5000);
+        });
+}
+
+// Register with address provider when server starts
+registerWithAddressProvider();
+
+
+// signature submission endpoint
+app.post('/submit', (req, res) => {
+    const { name, idNumber, signature } = req.body;
+
+    // Validate input
+    if (!name || !idNumber || !signature) {
+        return res.status(400).json({ message: 'All fields are required.' });
+    }
+
+    // Here you would add the logic to verify the ID with the IPRS data
+    // For now, we will simulate this with a simple condition
+    if (idNumber !== '12345678') {
+        return res.status(400).json({ message: 'ID number not found in IPRS.' });
+    }
+
+    // Simulate saving the data to a database
+	// save data to a database later though
+    console.log('Data received:', { name, idNumber, signature });
+
+    res.json({ message: 'Signature collected successfully\nShare to Your Frinds To make this possible' });
+});
+
+app.listen(PORT, HOST, () => {
+    console.log(`Server is running on http://${HOST}:${PORT}`);
+});
+
+
+
+// File: frontend/index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Signature Collection</title>
+	<link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+	<div class="container">
+		<h1>Sign The Petition</h1>
+		<div class="kenyan Falg">
+			<img src="./resources/Flag_of_Kenya.svg.png" alt="Kenyan-flag">
+		</div>
+		<h3>Take Back Your sovereignty</h3>
+		<h5>Power To the People</h5>
+
+		<form id="signatureForm">
+			<label for="name">Name:</label>
+			<input type="text" name="name" id="name" required>
+
+			<label for="idNumber">ID Number:</label>
+			<input type="text" name="idNumber" id="idNumber" required>
+
+			<label for="signature">Signature:</label>
+			<textarea name="signature" id="signature" required></textarea>
+
+			<button type="submit">Submit</button>
+		</form>
+		
+		<div id="response"></div>
+	</div>
+	<script src="script.js"></script>
+</body>
+</html>
+
+
+// File: frontend/script.js
+let serverAddress = '';
+const ADDRESS_PROVIDER = 'http://192.168.0.101:4000' // update this to the current address provider's address
+
+// Function to get the backend address from the address provider
+function getBackendAddress() {
+    return fetch(`${ADDRESS_PROVIDER}/get-backend-address`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ passcode: '9062002' }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.address) {
+            serverAddress = data.address;
+            console.log('Backend address:', serverAddress);
+        } else {
+            throw new Error('Failed to get backend address');
+        }
+    })
+    .catch(error => {
+        console.error('Error getting backend address:', error);
+        throw error;
+    });
+}
+
+// Get the backend address when the page loads
+getBackendAddress();
+
+document.getElementById('signatureForm').addEventListener('submit', function(event) {
+    event.preventDefault();
+
+    const name = document.getElementById('name').value;
+    const idNumber = document.getElementById('idNumber').value;
+    const signature = document.getElementById('signature').value;
+
+    const data = { name, idNumber, signature };
+
+    fetch(`${serverAddress}/submit`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('response').innerText = data.message;
+    })
+    .catch((error) => {
+        console.error('Error:', error);
+        document.getElementById('response').innerText = 'An error occurred. Please try again.';
+    });
+});
+
+
+
+// File: frontend/styles.css
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #702e2ef4;
+    margin: 0;
+}
+
+.container {
+    background: #fff;
+    padding: 20px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-radius: 5px;
+    width: 300px;
+    text-align: center;
+}
+
+h1 {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin: 10px 0 5px;
+}
+
+input, textarea {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+button {
+    padding: 10px 20px;
+    background: #28a745;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #218838;
+}
+
+#response {
+    margin-top: 10px;
+    color: red;
+}
+
+
+

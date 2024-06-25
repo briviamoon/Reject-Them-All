@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Signature Collection</title>
+	<link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+	<div class="container">
+		<h1>Sign The Petition</h1>
+		<div class="kenyan Falg">
+			<img src="./resources/Flag_of_Kenya.svg.png" alt="Kenyan-flag">
+		</div>
+		<h3>Take Back Your sovereignty</h3>
+		<h5>Power To the People</h5>
+
+		<form id="signatureForm">
+			<label for="name">Name:</label>
+			<input type="text" name="name" id="name" required>
+
+			<label for="idNumber">ID Number:</label>
+			<input type="text" name="idNumber" id="idNumber" required>
+
+			<label for="signature">Signature:</label>
+			<textarea name="signature" id="signature" required></textarea>
+
+			<button type="submit">Submit</button>
+		</form>
+		
+		<div id="response"></div>
+	</div>
+	<script src="script.js"></script>
+</body>
+</html>
